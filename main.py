@@ -2,7 +2,7 @@ import logging
 from pprint import pprint
 import random
 
-from sdam_gia import SdamGIA
+from sdam_gia import SdamGIA     # Инициализация
 
 from telegram import Update, ForceReply, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
@@ -16,13 +16,13 @@ logger = logging.getLogger(__name__)
 SUBJECT = 'inf'
 
 
+
 # Define a few command handlers. These usually take the two arguments update and
 # context.
 def start(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /start is issued."""
     keyboard = [
         [
-            InlineKeyboardButton("Вариант", callback_data="variant"),
             InlineKeyboardButton("Задачи", callback_data="zadacha"),
         ]
     ]
@@ -32,7 +32,6 @@ def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
         f"Привет, {user.full_name}!\n"
         f"Это бот для подготовки к ОГЭ по информатике.\n"
-        f"Чтобы начать решение варианта нажми на кнопку Вариант.\n"
         f"Чтобы начать решать случайные задачи нажми на Задачи.\n",
         reply_markup=keyboard_markup,
     )
@@ -43,9 +42,8 @@ def button(update: Update, context: CallbackContext):
     query = update.callback_query
     callbackdata = query.data
 
-    if callbackdata == "variant":
-        print("вы тыкнули на кнопку вариант")
-    elif callbackdata == "zadacha":
+
+    if callbackdata == "zadacha":
         keyboard = [
             [
                 InlineKeyboardButton("1", callback_data="z1"),
@@ -75,7 +73,7 @@ def button(update: Update, context: CallbackContext):
         message = "Выберите номер задачи.\n"
         for i, topic in enumerate(catalog):
             message += f"{i + 1} - {topic['topic_name']}\n"
-        query.edit_message_text(
+        query.message.reply_text(
             text=message,
             reply_markup=keyboard_markup
         )
@@ -93,16 +91,37 @@ def button(update: Update, context: CallbackContext):
         pprint(task)
 
         message = f"Задача {task['id']}\n" + f"{task['condition']['text']}\n"
+
         keyboard = [
             [
-                InlineKeyboardButton("Cледующая задача", callback_data=f"z{topic_index}"),
+                InlineKeyboardButton("Показать ответ", callback_data=f"task_{task['id']}"),
             ]
         ]
         keyboard_markup = InlineKeyboardMarkup(keyboard)
-        query.edit_message_text(
+        query.message.reply_text(
             text=message,
             reply_markup=keyboard_markup
         )
+
+    elif callbackdata.startswith('task_'):
+        sdamgia = SdamGIA()
+        task_id = int(callbackdata.split('_')[1])
+        task_info = sdamgia.get_problem_by_id(subject=SUBJECT,id=task_id)
+        message_answer = "Ответ: " + task_info['answer']
+        keyboard = [
+            [
+                InlineKeyboardButton("Следующая задача", callback_data=f"z{task_info['topic']}"),
+                InlineKeyboardButton("Выбор темы", callback_data="zadacha"),
+            ]
+        ]
+        keyboard_markup = InlineKeyboardMarkup(keyboard)
+        query.message.reply_text(
+            text=message_answer,
+            reply_markup=keyboard_markup,
+        )
+
+
+
 
 
 def help_command(update: Update, context: CallbackContext) -> None:
